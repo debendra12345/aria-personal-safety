@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
 // Import and trigger environment variable validation & DB init
+import { validateEnvironment } from './config/envValidator.js';
 import { initializeDatabase } from './config/db.js';
 
 // Routes imports
@@ -23,7 +24,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
+// Validate environment configuration before anything else starts
+validateEnvironment();
 const __dirname = path.dirname(__filename);
 
 const app = express();
@@ -41,6 +43,11 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// N19: Configure Express to trust the reverse proxy's IP forwarding headers
+// Render/Railway use a single-hop proxy, so we trust the immediate proxy only
+// This ensures getClientIp() correctly identifies the real user IP
+app.set('trust proxy', 1);
 
 // Request logging middleware
 app.use((req, res, next) => {

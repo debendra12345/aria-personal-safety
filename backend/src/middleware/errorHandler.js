@@ -5,10 +5,14 @@ export const errorHandler = (err, req, res, next) => {
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
   
+  // Only expose stack traces in development mode
+  // Production must NEVER leak implementation details
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
   res.status(statusCode).json({
     success: false,
     message: message,
-    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    error: isDevelopment ? err.stack : undefined
   });
 };
 
