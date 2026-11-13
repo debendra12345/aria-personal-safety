@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { User } from '../models/User.model.js';
 import { AuthSession, hashRefreshToken } from '../models/AuthSession.model.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { recordFailedLoginAttempt, clearFailedLoginAttempts } from '../middleware/rateLimiter.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'aria_secure_jwt_secret_key_change_me';
 const MIN_PASSWORD_LENGTH = 8;
@@ -94,6 +95,8 @@ export const login = asyncHandler(async (req, res) => {
 
   const user = await User.findByEmail(email);
   if (!user) {
+    // N19: Record failed attempt per email
+    recordFailedLoginAttempt(email);
     return res.status(401).json({
       success: false,
       message: 'Invalid email or password',
@@ -103,6 +106,8 @@ export const login = asyncHandler(async (req, res) => {
 
   const isMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isMatch) {
+    // N19: Record failed attempt per email
+    recordFailedLoginAttempt(email);
     return res.status(401).json({
       success: false,
       message: 'Invalid email or password',
@@ -111,6 +116,9 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const { token, refreshToken } = await createAuthTokens(user.id);
+
+  // N19: Clear failed login attempts after successful authentication
+  clearFailedLoginAttempts(email);
 
   const { passwordHash: _, ...userWithoutPassword } = user;
 
